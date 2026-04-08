@@ -128,7 +128,7 @@ local Button = Tab:CreateButton({
          ---------------------------------------------------------
          -- YOUR MAIN SCRIPT GOES HERE
          ---------------------------------------------------------
-         print("Authorized... Executing Main Script...")
+         print("Authorized... Injecting...")
          
 
 		loadstring(game:HttpGet('https://raw.githubusercontent.com/BigRigV3/Rigwarescript/refs/heads/main/RigWare.lua'))()
