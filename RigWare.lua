@@ -11,16 +11,6 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
-
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Aqua Hub | RMB Prediction",
-   LoadingTitle = "Syncing CFrame & Prediction...",
-   LoadingSubtitle = "by Gemini",
-   ConfigurationSaving = { Enabled = false }
-})
-
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
