@@ -1,9 +1,9 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "RigWare",
+   Name = "RigWare.lua",
    LoadingTitle = "Injecting...",
-   LoadingSubtitle = "RigWare: Undetected",
+   LoadingSubtitle = "RigWare.lua: Undetected",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = "ESP_Config",
