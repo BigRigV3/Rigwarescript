@@ -23,6 +23,43 @@ local LocalPlayer = Players.LocalPlayer
 
 -- // Storage
 local ESPData = {}
+local AimActive = false
+local SelectedBind = Enum.UserInputType.MouseButton2
+
+local function GetFlagValue(flagName, key, fallback)
+    local flag = Rayfield.Flags[flagName]
+    if type(flag) ~= "table" then
+        return fallback
+    end
+
+    local value = flag[key]
+    if value == nil then
+        return fallback
+    end
+
+    return value
+end
+
+local function GetColorFlagValue(flagName, fallback)
+    local flag = Rayfield.Flags[flagName]
+    if type(flag) ~= "table" then
+        return fallback
+    end
+
+    return flag.Color or flag.CurrentValue or fallback
+end
+
+local function NormalizeBind(bind)
+    if typeof(bind) == "EnumItem" then
+        return bind
+    end
+
+    if type(bind) == "string" then
+        return Enum.UserInputType[bind] or Enum.KeyCode[bind] or SelectedBind
+    end
+
+    return SelectedBind
+end
 
 -- // Helper: Create Drawing Objects
 local function CreateESP(Player)
@@ -87,8 +124,9 @@ CombatTab:CreateKeybind({
    HoldToInteract = false,
    Flag = "Aim_Bind",
    Callback = function(Key)
-      SelectedBind = Key
-      if Rayfield.Flags.Aim_Mode.CurrentOption[1] == "Toggle" then
+      SelectedBind = NormalizeBind(Key)
+      local mode = GetFlagValue("Aim_Mode", "CurrentOption", {"Hold"})
+      if mode[1] == "Toggle" then
           AimActive = not AimActive
       end
    end,
@@ -117,7 +155,7 @@ CombatTab:CreateSection("Targeting Rules")
 CombatTab:CreateToggle({
     Name = "Team Check",
     CurrentValue = true,
-    Flag = "Team_Check",
+    Flag = "Aim_Team_Check",
     Callback = function() end
 })
 
@@ -158,7 +196,7 @@ local MainSection = VisualsTab:CreateSection("ESP Toggles")
 local TeamToggle = VisualsTab:CreateToggle({
     Name = "Team Check",
     CurrentValue = false,
-    Flag = "Team_Check",
+    Flag = "ESP_Team_Check",
     Callback = function() end,
 })
 
@@ -223,7 +261,7 @@ RunService.RenderStepped:Connect(function()
             
             -- Logic Variables
             local IsEnemy = true
-            if Rayfield.Flags.Team_Check.CurrentValue and Player.Team == LocalPlayer.Team then
+            if GetFlagValue("ESP_Team_Check", "CurrentValue", false) and Player.Team == LocalPlayer.Team then
                 IsEnemy = false
             end
 
@@ -232,10 +270,10 @@ RunService.RenderStepped:Connect(function()
                 local Pos, OnScreen = Camera:WorldToViewportPoint(HRP.Position)
                 local Distance = (Camera.CFrame.Position - HRP.Position).Magnitude
                 
-                if OnScreen and Distance <= Rayfield.Flags.ESP_Dist.CurrentValue then
+                if OnScreen and Distance <= GetFlagValue("ESP_Dist", "CurrentValue", 2000) then
                     
                     -- Box Logic
-                    if Rayfield.Flags.Box_Enabled.CurrentValue then
+                    if GetFlagValue("Box_Enabled", "CurrentValue", false) then
                         -- Calculate 2D Box Size based on distance
                         local Top = Camera:WorldToViewportPoint(HRP.Position + Vector3.new(0, 3.5, 0))
                         local Bottom = Camera:WorldToViewportPoint(HRP.Position - Vector3.new(0, 4.5, 0))
@@ -244,25 +282,26 @@ RunService.RenderStepped:Connect(function()
                         
                         Drawings.Box.Size = Vector2.new(Width, Height)
                         Drawings.Box.Position = Vector2.new(Pos.X - (Width / 2), Pos.Y - (Height / 2))
-                        Drawings.Box.Color = Rayfield.Flags.Box_Col.Color
+                        Drawings.Box.Color = GetColorFlagValue("Box_Col", Color3.fromRGB(255, 255, 255))
                         Drawings.Box.Visible = true
                     else
                         Drawings.Box.Visible = false
                     end
                     
                     -- Tracer Logic
-                    if Rayfield.Flags.Tracer_Enabled.CurrentValue then
+                    if GetFlagValue("Tracer_Enabled", "CurrentValue", false) then
                         Drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                         Drawings.Tracer.To = Vector2.new(Pos.X, Pos.Y)
-                        Drawings.Tracer.Color = Rayfield.Flags.Tracer_Col.Color
+                        Drawings.Tracer.Color = GetColorFlagValue("Tracer_Col", Color3.fromRGB(255, 0, 0))
                         Drawings.Tracer.Visible = true
                     else
                         Drawings.Tracer.Visible = false
                     end
                     
                     -- Name Logic
-                    if Rayfield.Flags.Name_Enabled.CurrentValue then
-                        Drawings.Name.Position = Vector2.new(Pos.X, Pos.Y - (Drawings.Box.Size.Y / 2) - 20)
+                    if GetFlagValue("Name_Enabled", "CurrentValue", false) then
+                        local boxHeight = Drawings.Box.Visible and Drawings.Box.Size.Y or 40
+                        Drawings.Name.Position = Vector2.new(Pos.X, Pos.Y - (boxHeight / 2) - 20)
                         Drawings.Name.Text = string.format("%s [%d]", Player.Name, math.floor(Distance))
                         Drawings.Name.Color = Color3.new(1, 1, 1)
                         Drawings.Name.Visible = true
@@ -290,10 +329,6 @@ Players.PlayerRemoving:Connect(RemoveESP)
 
 
 
--- // Internal Variables
-local AimActive = false
-local SelectedBind = Enum.UserInputType.MouseButton2
-
 -- // FOV Circle Setup
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
@@ -306,13 +341,18 @@ FOVCircle.Visible = false
 
 local function GetClosestPlayer()
     local Closest = nil
-    local MaxDist = Rayfield.Flags.FOV_Radius.CurrentValue
+    local MaxDist = GetFlagValue("FOV_Radius", "CurrentValue", 150)
     
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+        local Character = v.Character
+        local Humanoid = Character and Character:FindFirstChild("Humanoid")
+
+        if v ~= LocalPlayer and Character and Character:FindFirstChild("HumanoidRootPart") and Humanoid and Humanoid.Health > 0 then
             local OnSameTeam = (v.Team == LocalPlayer.Team)
-            if not Rayfield.Flags.Team_Check.CurrentValue or not OnSameTeam then
-                local Part = v.Character:FindFirstChild(Rayfield.Flags.Aim_Part.CurrentOption[1])
+            if not GetFlagValue("Aim_Team_Check", "CurrentValue", true) or not OnSameTeam then
+                local currentOption = GetFlagValue("Aim_Part", "CurrentOption", {"Head"})
+                local targetPartName = currentOption[1] or "Head"
+                local Part = Character:FindFirstChild(targetPartName)
                 if Part then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Part.Position)
                     if OnScreen then
@@ -338,7 +378,8 @@ end
 
 UserInputService.InputBegan:Connect(function(i, p)
     if p then return end
-    if Rayfield.Flags.Aim_Mode.CurrentOption[1] == "Hold" then
+    local mode = GetFlagValue("Aim_Mode", "CurrentOption", {"Hold"})
+    if mode[1] == "Hold" then
         if i.KeyCode == SelectedBind or i.UserInputType == SelectedBind then
             AimActive = true
         end
@@ -346,7 +387,8 @@ UserInputService.InputBegan:Connect(function(i, p)
 end)
 
 UserInputService.InputEnded:Connect(function(i)
-    if Rayfield.Flags.Aim_Mode.CurrentOption[1] == "Hold" then
+    local mode = GetFlagValue("Aim_Mode", "CurrentOption", {"Hold"})
+    if mode[1] == "Hold" then
         if i.KeyCode == SelectedBind or i.UserInputType == SelectedBind then
             AimActive = false
         end
@@ -354,28 +396,28 @@ UserInputService.InputEnded:Connect(function(i)
 end)
 
 RunService.RenderStepped:Connect(function()
-    FOVCircle.Visible = Rayfield.Flags.Show_FOV.CurrentValue
-    FOVCircle.Radius = Rayfield.Flags.FOV_Radius.CurrentValue
+    FOVCircle.Visible = GetFlagValue("Show_FOV", "CurrentValue", true)
+    FOVCircle.Radius = GetFlagValue("FOV_Radius", "CurrentValue", 150)
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 
-    if Rayfield.Flags.Aim_Enabled.CurrentValue and AimActive then
+    if GetFlagValue("Aim_Enabled", "CurrentValue", false) and AimActive then
         local Target = GetClosestPlayer()
         if Target then
             local ScreenPos = Camera:WorldToViewportPoint(Target.Position)
             local MousePos = UserInputService:GetMouseLocation()
-            local Smoothness = Rayfield.Flags.Aim_Smooth.CurrentValue
+            local Smoothness = math.max(GetFlagValue("Aim_Smooth", "CurrentValue", 5), 1)
             if mousemoverel then
                 mousemoverel((ScreenPos.X - MousePos.X) / Smoothness, (ScreenPos.Y - MousePos.Y) / Smoothness)
             end
         end
     end
 
-    if Rayfield.Flags.Trigger_Enabled.CurrentValue then
+    if GetFlagValue("Trigger_Enabled", "CurrentValue", false) then
         local MouseTarget = LocalPlayer:GetMouse().Target
         if MouseTarget and MouseTarget.Parent:FindFirstChild("Humanoid") then
             local TargetPlayer = Players:GetPlayerFromCharacter(MouseTarget.Parent)
-            if TargetPlayer and (not Rayfield.Flags.Team_Check.CurrentValue or TargetPlayer.Team ~= LocalPlayer.Team) then
+            if TargetPlayer and (not GetFlagValue("Aim_Team_Check", "CurrentValue", true) or TargetPlayer.Team ~= LocalPlayer.Team) then
                 if mouse1click then mouse1click() end
             end
         end
