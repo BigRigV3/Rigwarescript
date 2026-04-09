@@ -3,11 +3,14 @@ repeat task.wait() until game:IsLoaded()
 
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
+local ESPFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
+local ESPTitle = Instance.new("TextLabel")
 local ToggleMoney = Instance.new("TextButton")
 local ToggleSpeed = Instance.new("TextButton")
 local ToggleRebirth = Instance.new("TextButton")
-local CloseButton = Instance.new("TextButton") -- New Close/Open Toggle
+local ToggleESPMenu = Instance.new("TextButton") 
+local CloseButton = Instance.new("TextButton")
 
 -- Stealth Setup
 ScreenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
@@ -17,51 +20,70 @@ end)
 ScreenGui.Parent = success and targetParent or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
--- Theme & Layout
+-- Main Container
 MainFrame.Name = "Container"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -75, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 160, 0, 210)
+MainFrame.Position = UDim2.new(0.5, -75, 0.5, -125)
+MainFrame.Size = UDim2.new(0, 160, 0, 260)
 MainFrame.Active = true
-MainFrame.Visible = true
 
--- Modern Dragging Logic
+-- ESP Sub-Menu
+ESPFrame.Name = "ESPMenu"
+ESPFrame.Parent = MainFrame
+ESPFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ESPFrame.BorderSizePixel = 0
+ESPFrame.Position = UDim2.new(1, 5, 0, 0)
+ESPFrame.Size = UDim2.new(0, 140, 0, 400)
+ESPFrame.Visible = false
+
+-- Dragging Logic
 local UserInputService = game:GetService("UserInputService")
 local dragging, dragInput, dragStart, startPos
 local function update(input)
-	local delta = input.Position - dragStart
-	MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
 MainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
-		end)
-	end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
 end)
 MainFrame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then update(input) end
+    if input == dragInput and dragging then update(input) end
 end)
 
--- Title
+local function CreateCorner(parent)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 6)
+    c.Parent = parent
+end
+
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "STEALTH FARM"
+Title.Text = "BRAINROT HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
 
--- Close/Open Toggle Button
-CloseButton.Name = "ToggleMenu"
+ESPTitle.Parent = ESPFrame
+ESPTitle.Size = UDim2.new(1, 0, 0, 30)
+ESPTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ESPTitle.Text = "RARITIES"
+ESPTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPTitle.Font = Enum.Font.GothamBold
+ESPTitle.TextSize = 12
+
 CloseButton.Parent = ScreenGui
 CloseButton.Position = UDim2.new(0, 10, 0, 10)
 CloseButton.Size = UDim2.new(0, 80, 0, 30)
@@ -69,63 +91,137 @@ CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 CloseButton.Text = "Close Menu"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.Gotham
-CloseButton.TextSize = 12
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 4)
-btnCorner.Parent = CloseButton
+CreateCorner(CloseButton)
 
 CloseButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
     CloseButton.Text = MainFrame.Visible and "Close Menu" or "Open Menu"
 end)
 
--- Button Helper Function
-local function StyleButton(btn, pos, text)
-    btn.Parent = MainFrame
-    btn.Size = UDim2.new(0.9, 0, 0, 45)
-    btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+local function StyleButton(btn, parent, offset, text, color)
+    btn.Parent = parent
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.BackgroundColor3 = color or Color3.fromRGB(180, 40, 40)
     btn.Text = text
     btn.Font = Enum.Font.Gotham
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 12
-    btn.BorderSizePixel = 0
-    btn.AnchorPoint = Vector2.new(0.5, 0)
-    btn.Position = UDim2.new(0.5, 0, pos.Y.Scale, pos.Y.Offset)
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
+    btn.TextSize = 10
+    btn.Position = UDim2.new(0.05, 0, 0, offset)
+    CreateCorner(btn)
 end
 
-StyleButton(ToggleMoney, UDim2.new(0, 0, 0, 45), "Money: OFF")
-StyleButton(ToggleSpeed, UDim2.new(0, 0, 0, 95), "Speed: OFF")
-StyleButton(ToggleRebirth, UDim2.new(0, 0, 0, 145), "Rebirth: OFF")
+StyleButton(ToggleMoney, MainFrame, 45, "Money: OFF")
+StyleButton(ToggleSpeed, MainFrame, 85, "Speed: OFF")
+StyleButton(ToggleRebirth, MainFrame, 125, "Rebirth: OFF")
+StyleButton(ToggleESPMenu, MainFrame, 165, "ESP Rarities >>")
 
--- Remotes
+-- ANTI-FLICKER ESP LOGIC
+local Rarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Cosmic", "Secret"}
+local ESP_Settings = { All = false }
+local Colors = {
+    Common = Color3.new(0.8, 0.8, 0.8),
+    Uncommon = Color3.new(0.2, 0.8, 0.2),
+    Rare = Color3.new(0, 0.5, 1),
+    Epic = Color3.new(0.6, 0.2, 0.9),
+    Legendary = Color3.new(1, 0.7, 0),
+    Mythical = Color3.new(1, 0, 0.6),
+    Cosmic = Color3.new(0, 1, 1),
+    Secret = Color3.new(1, 0, 0)
+}
+
+local function applyHighlight(obj, rarity)
+    local existing = obj:FindFirstChild("BrotHighlight")
+    if not existing then
+        local h = Instance.new("Highlight")
+        h.Name = "BrotHighlight"
+        h.FillTransparency = 0.4
+        h.OutlineTransparency = 0
+        h.FillColor = Colors[rarity] or Color3.new(1,1,1)
+        h.Parent = obj
+    end
+end
+
+local function removeHighlight(obj)
+    local existing = obj:FindFirstChild("BrotHighlight")
+    if existing then existing:Destroy() end
+end
+
+local function refreshAll()
+    local folder = workspace:FindFirstChild("ActiveBrainrots")
+    if not folder then return end
+    for _, rarityFolder in pairs(folder:GetChildren()) do
+        local rName = rarityFolder.Name
+        local isEnabled = ESP_Settings.All or ESP_Settings[rName]
+        for _, item in pairs(rarityFolder:GetChildren()) do
+            if isEnabled then
+                applyHighlight(item, rName)
+            else
+                removeHighlight(item)
+            end
+        end
+    end
+end
+
+ToggleESPMenu.MouseButton1Click:Connect(function()
+    ESPFrame.Visible = not ESPFrame.Visible
+    ToggleESPMenu.Text = ESPFrame.Visible and "<< Hide ESP" or "ESP Rarities >>"
+end)
+
+for i, rarity in pairs(Rarities) do
+    local btn = Instance.new("TextButton")
+    ESP_Settings[rarity] = false
+    StyleButton(btn, ESPFrame, 35 + (i-1)*40, rarity..": OFF", Color3.fromRGB(60, 60, 60))
+    
+    btn.MouseButton1Click:Connect(function()
+        ESP_Settings[rarity] = not ESP_Settings[rarity]
+        btn.Text = rarity .. (ESP_Settings[rarity] and ": ON" or ": OFF")
+        btn.BackgroundColor3 = ESP_Settings[rarity] and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(60, 60, 60)
+        refreshAll()
+    end)
+end
+
+local AllBtn = Instance.new("TextButton")
+StyleButton(AllBtn, ESPFrame, 35 + (#Rarities)*40, "TOGGLE ALL: OFF", Color3.fromRGB(80, 20, 20))
+AllBtn.MouseButton1Click:Connect(function()
+    ESP_Settings.All = not ESP_Settings.All
+    AllBtn.Text = ESP_Settings.All and "TOGGLE ALL: ON" or "TOGGLE ALL: OFF"
+    AllBtn.BackgroundColor3 = ESP_Settings.All and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(80, 20, 20)
+    refreshAll()
+end)
+
+-- Persistent Listener (Handles new spawns without a loop)
+task.spawn(function()
+    local activeFolder = workspace:WaitForChild("ActiveBrainrots")
+    for _, rarityFolder in pairs(activeFolder:GetChildren()) do
+        rarityFolder.ChildAdded:Connect(function(item)
+            task.wait(0.2) -- Small wait for object to fully load
+            if ESP_Settings.All or ESP_Settings[rarityFolder.Name] then
+                applyHighlight(item, rarityFolder.Name)
+            end
+        end)
+    end
+end)
+
+-- AUTO-FARM LOGIC
 local MoneyRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("Networking"):WaitForChild("RF/PlotAction")
 local SpeedRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("UpgradeSpeed")
 local RebirthRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("Rebirth")
 
 local MoneyRunning, SpeedRunning, RebirthRunning = false, false, false
 
--- Logic
 ToggleMoney.MouseButton1Click:Connect(function()
     MoneyRunning = not MoneyRunning
-    ToggleMoney.Text = MoneyRunning and "Money: BRUTE" or "Money: OFF"
+    ToggleMoney.Text = MoneyRunning and "Money: ON" or "Money: OFF"
     ToggleMoney.BackgroundColor3 = MoneyRunning and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(180, 40, 40)
-    
     if MoneyRunning then
         task.spawn(function()
             while MoneyRunning do
                 local folder = workspace:FindFirstChild("Bases")
                 if folder then
                     for _, base in pairs(folder:GetChildren()) do
-                        if not MoneyRunning then break end
-                        -- UPGRADED: Now loops from 1 to 40
                         for i = 1, 40 do
-                            pcall(function() 
-                                MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) 
-                            end)
+                            if not MoneyRunning then break end
+                            pcall(function() MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) end)
                         end
                     end
                 end
@@ -137,9 +233,8 @@ end)
 
 ToggleSpeed.MouseButton1Click:Connect(function()
     SpeedRunning = not SpeedRunning
-    ToggleSpeed.Text = SpeedRunning and "Speed: 10x" or "Speed: OFF"
+    ToggleSpeed.Text = SpeedRunning and "Speed: ON" or "Speed: OFF"
     ToggleSpeed.BackgroundColor3 = SpeedRunning and Color3.fromRGB(30, 140, 180) or Color3.fromRGB(180, 40, 40)
-    
     if SpeedRunning then
         task.spawn(function()
             while SpeedRunning do
@@ -157,7 +252,6 @@ ToggleRebirth.MouseButton1Click:Connect(function()
     RebirthRunning = not RebirthRunning
     ToggleRebirth.Text = RebirthRunning and "Rebirth: ON" or "Rebirth: OFF"
     ToggleRebirth.BackgroundColor3 = RebirthRunning and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(180, 40, 40)
-    
     if RebirthRunning then
         task.spawn(function()
             while RebirthRunning do
