@@ -115,7 +115,7 @@ StyleButton(ToggleSpeed, MainFrame, 85, "Speed: OFF")
 StyleButton(ToggleRebirth, MainFrame, 125, "Rebirth: OFF")
 StyleButton(ToggleESPMenu, MainFrame, 165, "ESP Rarities >>")
 
--- ANTI-FLICKER ESP LOGIC
+-- ESP Logic (Rarities)
 local Rarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Cosmic", "Secret"}
 local ESP_Settings = { All = false }
 local Colors = {
@@ -130,8 +130,7 @@ local Colors = {
 }
 
 local function applyHighlight(obj, rarity)
-    local existing = obj:FindFirstChild("BrotHighlight")
-    if not existing then
+    if not obj:FindFirstChild("BrotHighlight") then
         local h = Instance.new("Highlight")
         h.Name = "BrotHighlight"
         h.FillTransparency = 0.4
@@ -142,8 +141,8 @@ local function applyHighlight(obj, rarity)
 end
 
 local function removeHighlight(obj)
-    local existing = obj:FindFirstChild("BrotHighlight")
-    if existing then existing:Destroy() end
+    local h = obj:FindFirstChild("BrotHighlight")
+    if h then h:Destroy() end
 end
 
 local function refreshAll()
@@ -153,11 +152,7 @@ local function refreshAll()
         local rName = rarityFolder.Name
         local isEnabled = ESP_Settings.All or ESP_Settings[rName]
         for _, item in pairs(rarityFolder:GetChildren()) do
-            if isEnabled then
-                applyHighlight(item, rName)
-            else
-                removeHighlight(item)
-            end
+            if isEnabled then applyHighlight(item, rName) else removeHighlight(item) end
         end
     end
 end
@@ -171,7 +166,6 @@ for i, rarity in pairs(Rarities) do
     local btn = Instance.new("TextButton")
     ESP_Settings[rarity] = false
     StyleButton(btn, ESPFrame, 35 + (i-1)*40, rarity..": OFF", Color3.fromRGB(60, 60, 60))
-    
     btn.MouseButton1Click:Connect(function()
         ESP_Settings[rarity] = not ESP_Settings[rarity]
         btn.Text = rarity .. (ESP_Settings[rarity] and ": ON" or ": OFF")
@@ -189,12 +183,12 @@ AllBtn.MouseButton1Click:Connect(function()
     refreshAll()
 end)
 
--- Persistent Listener (Handles new spawns without a loop)
+-- Spawn Listener for ESP
 task.spawn(function()
-    local activeFolder = workspace:WaitForChild("ActiveBrainrots")
-    for _, rarityFolder in pairs(activeFolder:GetChildren()) do
+    local folder = workspace:WaitForChild("ActiveBrainrots")
+    for _, rarityFolder in pairs(folder:GetChildren()) do
         rarityFolder.ChildAdded:Connect(function(item)
-            task.wait(0.2) -- Small wait for object to fully load
+            task.wait(0.1)
             if ESP_Settings.All or ESP_Settings[rarityFolder.Name] then
                 applyHighlight(item, rarityFolder.Name)
             end
@@ -202,35 +196,45 @@ task.spawn(function()
     end
 end)
 
--- AUTO-FARM LOGIC
+-- REBUILT FASTER MONEY COLLECTOR
 local MoneyRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("Networking"):WaitForChild("RF/PlotAction")
 local SpeedRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("UpgradeSpeed")
 local RebirthRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("Rebirth")
 
-local MoneyRunning, SpeedRunning, RebirthRunning = false, false, false
+local MoneyRunning = false
+local SpeedRunning = false
+local RebirthRunning = false
 
 ToggleMoney.MouseButton1Click:Connect(function()
     MoneyRunning = not MoneyRunning
-    ToggleMoney.Text = MoneyRunning and "Money: ON" or "Money: OFF"
+    ToggleMoney.Text = MoneyRunning and "Money: FAST" or "Money: OFF"
     ToggleMoney.BackgroundColor3 = MoneyRunning and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(180, 40, 40)
+    
     if MoneyRunning then
         task.spawn(function()
             while MoneyRunning do
-                local folder = workspace:FindFirstChild("Bases")
-                if folder then
-                    for _, base in pairs(folder:GetChildren()) do
-                        for i = 1, 40 do
-                            if not MoneyRunning then break end
-                            pcall(function() MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) end)
-                        end
+                local Bases = workspace:FindFirstChild("Bases")
+                if Bases then
+                    for _, base in pairs(Bases:GetChildren()) do
+                        -- Spawn a separate thread for EACH base to prevent lag/delays
+                        task.spawn(function()
+                            for i = 1, 40 do
+                                if not MoneyRunning then break end
+                                pcall(function() 
+                                    -- Directly firing "1" to "40" as strings
+                                    MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) 
+                                end)
+                            end
+                        end)
                     end
                 end
-                task.wait(0.2)
+                task.wait(0.3) -- Small delay to prevent server kick for spam, but multi-threaded
             end
         end)
     end
 end)
 
+-- Auto Speed & Rebirth
 ToggleSpeed.MouseButton1Click:Connect(function()
     SpeedRunning = not SpeedRunning
     ToggleSpeed.Text = SpeedRunning and "Speed: ON" or "Speed: OFF"
@@ -238,11 +242,8 @@ ToggleSpeed.MouseButton1Click:Connect(function()
     if SpeedRunning then
         task.spawn(function()
             while SpeedRunning do
-                for i = 1, 10 do
-                    if not SpeedRunning then break end
-                    pcall(function() SpeedRemote:InvokeServer(1) end)
-                end
-                task.wait(0.1)
+                pcall(function() SpeedRemote:InvokeServer(1) end)
+                task.wait(0.0001)
             end
         end)
     end
@@ -256,7 +257,7 @@ ToggleRebirth.MouseButton1Click:Connect(function()
         task.spawn(function()
             while RebirthRunning do
                 pcall(function() RebirthRemote:InvokeServer() end)
-                task.wait(0.1)
+                task.wait(0.2)
             end
         end)
     end
