@@ -7,10 +7,10 @@ local Title = Instance.new("TextLabel")
 local ToggleMoney = Instance.new("TextButton")
 local ToggleSpeed = Instance.new("TextButton")
 local ToggleRebirth = Instance.new("TextButton")
+local CloseButton = Instance.new("TextButton") -- New Close/Open Toggle
 
 -- Stealth Setup
 ScreenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
--- Try to use a protected container, fallback to PlayerGui if needed
 local success, targetParent = pcall(function() 
     return gethui() or game:GetService("CoreGui") 
 end)
@@ -25,8 +25,9 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -75, 0.5, -100)
 MainFrame.Size = UDim2.new(0, 160, 0, 210)
 MainFrame.Active = true
+MainFrame.Visible = true
 
--- Modern Dragging Logic (Prevents Kicks)
+-- Modern Dragging Logic
 local UserInputService = game:GetService("UserInputService")
 local dragging, dragInput, dragStart, startPos
 local function update(input)
@@ -50,6 +51,7 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
+-- Title
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -58,10 +60,28 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
 
+-- Close/Open Toggle Button
+CloseButton.Name = "ToggleMenu"
+CloseButton.Parent = ScreenGui
+CloseButton.Position = UDim2.new(0, 10, 0, 10)
+CloseButton.Size = UDim2.new(0, 80, 0, 30)
+CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+CloseButton.Text = "Close Menu"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.Gotham
+CloseButton.TextSize = 12
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 4)
+btnCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+    CloseButton.Text = MainFrame.Visible and "Close Menu" or "Open Menu"
+end)
+
 -- Button Helper Function
 local function StyleButton(btn, pos, text)
     btn.Parent = MainFrame
-    btn.Position = pos
     btn.Size = UDim2.new(0.9, 0, 0, 45)
     btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
     btn.Text = text
@@ -101,8 +121,11 @@ ToggleMoney.MouseButton1Click:Connect(function()
                 if folder then
                     for _, base in pairs(folder:GetChildren()) do
                         if not MoneyRunning then break end
-                        for i = 1, 5 do
-                            pcall(function() MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) end)
+                        -- UPGRADED: Now loops from 1 to 40
+                        for i = 1, 40 do
+                            pcall(function() 
+                                MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) 
+                            end)
                         end
                     end
                 end
