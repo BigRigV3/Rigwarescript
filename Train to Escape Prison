@@ -1,0 +1,160 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Train to Escape Prison",
+   LoadingTitle = "ScriptHubLoader",
+   LoadingSubtitle = "by BigRig",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = "ChestFarmConfig",
+      FileName = "BigRig_Settings"
+   },
+   KeySystem = false
+})
+
+-- Tabsa
+local MainTab = Window:CreateTab("Farming", 4483362458)
+local EggTab = Window:CreateTab("Eggs", 4483362458)
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+
+-- Variables
+local strengthFarmActive = false
+local maxRebirthActive = false
+local infMoneyActive = false
+local auraSpamActive = false
+
+-- Helper function for Egg/Event Opening
+local function openEgg(eggName)
+    local args = {eggName, 1}
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("E&F"):WaitForChild("Luck"):WaitForChild("[C-S]DoLuck"):InvokeServer(unpack(args))
+    end)
+end
+
+-- MAIN TAB: Strength, Money & Rebirth
+MainTab:CreateToggle({
+   Name = "Auto Farm Strength [On Machine]",
+   CurrentValue = false,
+   Flag = "StrengthToggle",
+   Callback = function(Value)
+      strengthFarmActive = Value
+      if strengthFarmActive then
+          task.spawn(function()
+              local remote = game:GetService("ReplicatedStorage"):WaitForChild("E&F"):WaitForChild("Train"):WaitForChild("TrainOnceRE")
+              while strengthFarmActive do
+                  remote:FireServer(1.1462546426205953, false)
+                  task.wait() 
+              end
+          end)
+      end
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Get Inf Money [Super Fast]",
+   CurrentValue = false,
+   Flag = "MoneyToggle",
+   Callback = function(Value)
+      infMoneyActive = Value
+      if infMoneyActive then
+          task.spawn(function()
+              local moneyRemote = game:GetService("ReplicatedStorage"):WaitForChild("E&F"):WaitForChild("Dig"):WaitForChild("CalculateDigCoinsRF")
+              while infMoneyActive do
+                  moneyRemote:InvokeServer()
+                  task.wait() 
+              end
+          end)
+      end
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Max Rebirth [2 Seconds]",
+   CurrentValue = false,
+   Flag = "RebirthToggle",
+   Callback = function(Value)
+      maxRebirthActive = Value
+      if maxRebirthActive then
+          task.spawn(function()
+              local rebirthRemote = game:GetService("ReplicatedStorage"):WaitForChild("E&F"):WaitForChild("Train"):WaitForChild("RebirthRE")
+              while maxRebirthActive do
+                  rebirthRemote:FireServer()
+                  task.wait(2) 
+              end
+          end)
+      end
+   end,
+})
+
+-- EGGS TAB
+-- NEW: Event Section at the Top
+EggTab:CreateSection("Event")
+
+EggTab:CreateButton({
+   Name = "Dupe/Give Event Pet",
+   Callback = function() 
+       openEgg("PetEvent_1") 
+   end,
+})
+
+-- Area 1 Section
+EggTab:CreateSection("Area 1")
+
+EggTab:CreateButton({
+   Name = "Open Egg 1",
+   Callback = function() openEgg("Egg1") end,
+})
+
+EggTab:CreateButton({
+   Name = "Open Egg 2",
+   Callback = function() openEgg("Egg2") end,
+})
+
+EggTab:CreateButton({
+   Name = "Open Egg 3",
+   Callback = function() openEgg("Egg3") end,
+})
+
+-- World 2 Section
+EggTab:CreateSection("World 2")
+
+EggTab:CreateButton({
+   Name = "Open Egg 4",
+   Callback = function() openEgg("Egg4") end,
+})
+
+EggTab:CreateButton({
+   Name = "Open Egg 5",
+   Callback = function() openEgg("Egg5") end,
+})
+
+EggTab:CreateButton({
+   Name = "Open Egg 6",
+   Callback = function() openEgg("Egg6") end,
+})
+
+-- MISC TAB
+MiscTab:CreateToggle({
+   Name = "Aura Spam",
+   CurrentValue = false,
+   Flag = "AuraToggle",
+   Callback = function(Value)
+      auraSpamActive = Value
+      if auraSpamActive then
+          task.spawn(function()
+              local vfxRemote = game:GetService("ReplicatedStorage"):WaitForChild("E&F"):WaitForChild("Train"):WaitForChild("FireTrainOnceVFX")
+              while auraSpamActive do
+                  vfxRemote:FireServer()
+                  task.wait(0.1) 
+              end
+          end)
+      end
+   end,
+})
+
+Rayfield:Notify({
+   Title = "Success",
+   Content = "Event Pet & Sections Loaded",
+   Duration = 3,
+   Image = 4483362458,
+})
