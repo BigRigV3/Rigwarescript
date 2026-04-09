@@ -1,0 +1,1375 @@
+-- [[ LOAD PEPSI LIBRARY ]] --
+
+local Library = loadstring(game:GetObjects("rbxassetid://7657867786")[1].Source)("Pepsi's UI Library")
+
+
+
+-- [[ SERVICES ]] --
+
+local Players = game:GetService("Players")
+
+local RunService = game:GetService("RunService")
+
+local UserInputService = game:GetService("UserInputService")
+
+local TeleportService = game:GetService("TeleportService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Camera = workspace.CurrentCamera
+
+
+
+-- [[ CORE VARIABLES ]] --
+
+local AIM_PART = "Head"
+
+local TARGET_PRIORITY = "Mouse"
+
+local SMOOTHNESS = 0.25
+
+local FOV_RADIUS = 150
+
+local AIM_DISTANCE = 500
+
+local ESP_DISTANCE = 2000
+
+local TEAM_CHECK = false
+
+local PREDICTION_ENABLED = false
+
+local PREDICTION_VALUE = 0.08
+
+local TRACER_ORIGIN = "Bottom"
+
+local AIMBOT_MODE = "Hold"
+
+
+
+local BoxColor = Color3.fromRGB(173, 216, 230)
+
+local TracerColor = Color3.fromRGB(173, 216, 230)
+
+local NameColor = Color3.fromRGB(0, 255, 0)
+
+local SkeletonColor = Color3.fromRGB(0, 180, 255)
+
+local HealthColor = Color3.fromRGB(0, 255, 0)
+
+local HeadDotColor = Color3.fromRGB(0, 180, 255)
+
+
+
+local FOV_COLOR = Color3.fromRGB(255, 255, 255)
+
+local FOV_FILLED = true
+
+local FOV_OPACITY = 0.1
+
+local SHOW_FOV = false
+
+
+
+local ESP_ENABLED = false
+
+local TRACERS_ENABLED = false
+
+local SKELETON_ENABLED = false
+
+local HEALTHBAR_ENABLED = false
+
+local NAME_ENABLED = false
+
+local HEADDOT_ENABLED = false
+
+local BOX_FILLED = false
+
+local BOX_OPACITY = 0.5
+
+local CORNER_BOX = false
+
+local OUTLINES = true
+
+local SELF_ESP = false
+
+local RAINBOW_ESP = false
+
+local AIMBOT_MASTER = false
+
+local CURSOR_AIMBOT = false
+
+local RAINBOW_SPEED = 1
+
+
+
+local INF_JUMP = false
+
+local flying = false
+
+local noclipping = false
+
+local speedEnabled = false
+
+local flySpeed = 50
+
+local walkSpeedValue = 16
+
+
+
+local MainColor = Color3.fromRGB(0, 255, 120)
+
+local holding = false
+
+local RigWare_Registry = { Connections = {}, Drawings = {} }
+
+
+
+-- [[ UTILITIES ]] --
+
+local function SafeConnect(signal, callback)
+
+    local conn = signal:Connect(callback)
+
+    table.insert(RigWare_Registry.Connections, conn)
+
+    return conn
+
+end
+
+
+
+local function SafeDraw(obj, prop)
+
+    local drawing = Drawing.new(obj)
+
+    for i, v in pairs(prop) do
+
+        drawing[i] = v
+
+    end
+
+    table.insert(RigWare_Registry.Drawings, drawing)
+
+    return drawing
+
+end
+
+
+
+local function GetUniversalCharacter(Player)
+
+    if Player.Character then
+
+        return Player.Character
+
+    end
+
+
+
+    local char = workspace:FindFirstChild(Player.Name)
+
+    if char and (char:IsA("Model") or char:IsA("Folder")) then
+
+        return char
+
+    end
+
+
+
+    for _, v in pairs(workspace:GetChildren()) do
+
+        if v.Name == Player.Name and (v:IsA("Model") or v:IsA("Folder")) then
+
+            return v
+
+        end
+
+    end
+
+
+
+    return nil
+
+end
+
+
+
+local function GetUniversalPart(Character, PartName)
+
+    if not Character then
+
+        return nil
+
+    end
+
+
+
+    local found = Character:FindFirstChild(PartName, true)
+
+    if found and found:IsA("BasePart") then
+
+        return found
+
+    end
+
+
+
+    local fallbacks = { "Hitbox", "Head", "UpperTorso", "HumanoidRootPart", "Torso", "Humanoid" }
+
+    for _, name in ipairs(fallbacks) do
+
+        local part = Character:FindFirstChild(name, true)
+
+        if part and part:IsA("BasePart") then
+
+            return part
+
+        end
+
+    end
+
+
+
+    return nil
+
+end
+
+
+
+local function GetClosestPart(Character)
+
+    local closestPart = nil
+
+    local shortestDist = math.huge
+
+    local mousePos = UserInputService:GetMouseLocation()
+
+
+
+    for _, part in pairs(Character:GetDescendants()) do
+
+        if part:IsA("BasePart") then
+
+            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+
+            if onScreen then
+
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+
+                if dist < shortestDist then
+
+                    shortestDist = dist
+
+                    closestPart = part
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+
+    return closestPart or GetUniversalPart(Character, "Head")
+
+end
+
+
+
+local function GetBindValue()
+
+    local flags = Library.Flags or {}
+
+    local binding = flags.Aim_Key
+
+
+
+    if typeof(binding) == "table" then
+
+        return binding.Value or binding.Key or binding[1]
+
+    end
+
+
+
+    return binding
+
+end
+
+
+
+-- [[ RAINBOW CYCLE ]] --
+
+local Tick = 0
+
+task.spawn(function()
+
+    while task.wait() do
+
+        Tick = Tick + (RAINBOW_SPEED / 100)
+
+        MainColor = RAINBOW_ESP and Color3.fromHSV(Tick % 1, 0.8, 1) or Color3.fromRGB(0, 255, 120)
+
+    end
+
+end)
+
+
+
+-- [[ FOV DRAWINGS ]] --
+
+local FOVFill = SafeDraw("Circle", { Thickness = 0, NumSides = 100, Filled = true, Visible = false, ZIndex = 1 })
+
+local FOVOutline = SafeDraw("Circle", { Thickness = 3, NumSides = 100, Filled = false, Color = Color3.new(0, 0, 0), Visible = false, ZIndex = 2 })
+
+local FOVCircle = SafeDraw("Circle", { Thickness = 1, NumSides = 100, Filled = false, Visible = false, ZIndex = 3 })
+
+
+
+-- [[ WINDOW INITIALIZATION ]] --
+
+local Window = Library:CreateWindow({
+
+    Name = "rigware.lua",
+
+    Theme = "Dark"
+
+})
+
+
+
+local function SafeColorpicker(parent, config)
+
+    local success = pcall(function()
+
+        parent:AddColorPicker(config)
+
+    end)
+
+    if not success then
+
+        pcall(function()
+
+            parent:AddColorpicker(config)
+
+        end)
+
+    end
+
+end
+
+
+
+-- [[ COMBAT TAB ]] --
+
+local CombatTab = Window:CreateTab({ Name = "Combat" })
+
+local AimSection = CombatTab:CreateSection({ Name = "Aimbot Settings", Side = "Left" })
+
+local TargetSection = CombatTab:CreateSection({ Name = "Targeting", Side = "Right" })
+
+local PrecisionSection = CombatTab:CreateSection({ Name = "Precision & FOV", Side = "Left" })
+
+local PredictionSection = CombatTab:CreateSection({ Name = "Prediction", Side = "Right" })
+
+
+
+AimSection:AddToggle({ Name = "MemoryAimbot (detected most games)", Flag = "Aim_Enabled", Callback = function(v) AIMBOT_MASTER = v end })
+
+AimSection:AddToggle({ Name = "Mouse Aimbot (Undeteted)", Flag = "Cursor_Enabled", Callback = function(v) CURSOR_AIMBOT = v end })
+
+AimSection:AddDropdown({
+
+    Name = "Aimbot Mode",
+
+    List = { "Hold", "Toggle", "Always" },
+
+    Default = "Hold",
+
+    Callback = function(v) AIMBOT_MODE = v end
+
+})
+
+
+
+local bindCreated = pcall(function()
+
+    AimSection:AddKeybind({
+
+        Name = "Aimbot Key",
+
+        Flag = "Aim_Key",
+
+        Default = Enum.UserInputType.MouseButton2,
+
+        Callback = function() end
+
+    })
+
+end)
+
+
+
+if not bindCreated then
+
+    pcall(function()
+
+        AimSection:AddBind({
+
+            Name = "Aimbot Key",
+
+            Flag = "Aim_Key",
+
+            Default = Enum.UserInputType.MouseButton2
+
+        })
+
+    end)
+
+end
+
+
+
+TargetSection:AddDropdown({
+
+    Name = "Priority",
+
+    List = { "Mouse", "Distance" },
+
+    Default = "Mouse",
+
+    Callback = function(v) TARGET_PRIORITY = v end
+
+})
+
+TargetSection:AddDropdown({
+
+    Name = "Aim Part",
+
+    List = { "Head", "UpperTorso", "Closest" },
+
+    Default = "Head",
+
+    Callback = function(v) AIM_PART = v end
+
+})
+
+TargetSection:AddToggle({ Name = "Team Check", Callback = function(v) TEAM_CHECK = v end })
+
+
+
+PrecisionSection:AddSlider({
+
+    Name = "Smoothness",
+
+    Min = 1,
+
+    Max = 20,
+
+    Value = 5,
+
+    Callback = function(v) SMOOTHNESS = 1 / (v * 2) end
+
+})
+
+PrecisionSection:AddSlider({
+
+    Name = "Max Aim Distance",
+
+    Min = 100,
+
+    Max = 5000,
+
+    Value = 500,
+
+    Callback = function(v) AIM_DISTANCE = v end
+
+})
+
+PrecisionSection:AddToggle({ Name = "Show FOV", Callback = function(v) SHOW_FOV = v end })
+
+PrecisionSection:AddToggle({ Name = "Filled FOV", Default = true, Callback = function(v) FOV_FILLED = v end })
+
+PrecisionSection:AddSlider({
+
+    Name = "FOV Radius",
+
+    Min = 10,
+
+    Max = 800,
+
+    Value = 150,
+
+    Callback = function(v) FOV_RADIUS = v end
+
+})
+
+PrecisionSection:AddSlider({
+
+    Name = "Fill Opacity",
+
+    Min = 0,
+
+    Max = 100,
+
+    Value = 10,
+
+    Callback = function(v) FOV_OPACITY = v / 100 end
+
+})
+
+SafeColorpicker(PrecisionSection, {
+
+    Name = "FOV Color",
+
+    Default = Color3.new(1, 1, 1),
+
+    Callback = function(v) FOV_COLOR = v end
+
+})
+
+
+
+PredictionSection:AddToggle({ Name = "Prediction", Callback = function(v) PREDICTION_ENABLED = v end })
+
+PredictionSection:AddSlider({
+
+    Name = "Velocity Offset",
+
+    Min = 0,
+
+    Max = 100,
+
+    Value = 8,
+
+    Callback = function(v) PREDICTION_VALUE = v / 100 end
+
+})
+
+
+
+-- [[ VISUALS TAB ]] --
+
+local VisualsTab = Window:CreateTab({ Name = "Visuals" })
+
+local MainESP = VisualsTab:CreateSection({ Name = "ESP Toggles", Side = "Left" })
+
+local ConfigESP = VisualsTab:CreateSection({ Name = "Settings", Side = "Right" })
+
+
+
+MainESP:AddToggle({ Name = "Box ESP", Callback = function(v) ESP_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Corner Box", Callback = function(v) CORNER_BOX = v end })
+
+MainESP:AddToggle({ Name = "Filled Box", Callback = function(v) BOX_FILLED = v end })
+
+MainESP:AddToggle({ Name = "Tracers", Callback = function(v) TRACERS_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Name ESP", Callback = function(v) NAME_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Skeleton ESP", Callback = function(v) SKELETON_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Healthbar", Callback = function(v) HEALTHBAR_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Head Dot", Callback = function(v) HEADDOT_ENABLED = v end })
+
+MainESP:AddToggle({ Name = "Self ESP", Callback = function(v) SELF_ESP = v end })
+
+MainESP:AddToggle({ Name = "Outlines", Default = true, Callback = function(v) OUTLINES = v end })
+
+MainESP:AddToggle({ Name = "Rainbow Mode", Callback = function(v) RAINBOW_ESP = v end })
+
+
+
+SafeColorpicker(MainESP, { Name = "Box Color", Default = BoxColor, Callback = function(v) BoxColor = v end })
+
+SafeColorpicker(MainESP, { Name = "Tracer Color", Default = TracerColor, Callback = function(v) TracerColor = v end })
+
+SafeColorpicker(MainESP, { Name = "Skeleton Color", Default = SkeletonColor, Callback = function(v) SkeletonColor = v end })
+
+
+
+ConfigESP:AddSlider({
+
+    Name = "Rainbow Speed",
+
+    Min = 1,
+
+    Max = 10,
+
+    Value = 1,
+
+    Callback = function(v) RAINBOW_SPEED = v end
+
+})
+
+ConfigESP:AddDropdown({
+
+    Name = "Tracer Origin",
+
+    List = { "Top", "Middle", "Bottom" },
+
+    Default = "Bottom",
+
+    Callback = function(v) TRACER_ORIGIN = v end
+
+})
+
+ConfigESP:AddSlider({
+
+    Name = "ESP Distance",
+
+    Min = 100,
+
+    Max = 5000,
+
+    Value = 2000,
+
+    Callback = function(v) ESP_DISTANCE = v end
+
+})
+
+
+
+-- [[ MOVEMENT TAB ]] --
+
+local MoveTab = Window:CreateTab({ Name = "Movement" })
+
+local MoveSec = MoveTab:CreateSection({ Name = "Main Features" })
+
+
+
+MoveSec:AddToggle({ Name = "WalkSpeed Multi", Callback = function(v) speedEnabled = v end })
+
+MoveSec:AddSlider({ Name = "Speed Amount", Min = 16, Max = 300, Value = 16, Callback = function(v) walkSpeedValue = v end })
+
+MoveSec:AddToggle({ Name = "Flight", Callback = function(v) flying = v end })
+
+MoveSec:AddSlider({ Name = "Fly Speed", Min = 10, Max = 500, Value = 50, Callback = function(v) flySpeed = v end })
+
+MoveSec:AddToggle({ Name = "Infinite Jump", Callback = function(v) INF_JUMP = v end })
+
+MoveSec:AddToggle({ Name = "Noclip", Callback = function(v) noclipping = v end })
+
+
+
+-- [[ SETTINGS ]] --
+
+local SettingsTab = Window:CreateTab({ Name = "Settings" })
+
+local MenuSec = SettingsTab:CreateSection({ Name = "Menu" })
+
+
+
+MenuSec:AddButton({
+
+    Name = "Rejoin",
+
+    Callback = function()
+
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+
+    end
+
+})
+
+MenuSec:AddButton({
+
+    Name = "Unload Script",
+
+    Callback = function()
+
+        for _, c in pairs(RigWare_Registry.Connections) do
+
+            c:Disconnect()
+
+        end
+
+        for _, d in pairs(RigWare_Registry.Drawings) do
+
+            d:Remove()
+
+        end
+
+        if Window.Close then
+
+            Window:Close()
+
+        end
+
+    end
+
+})
+
+
+
+-- [[ ESP RENDERING ]] --
+
+local BoneStructure = {
+
+    { "Head", "UpperTorso" }, { "UpperTorso", "LowerTorso" },
+
+    { "UpperTorso", "LeftUpperArm" }, { "LeftUpperArm", "LeftLowerArm" }, { "LeftLowerArm", "LeftHand" },
+
+    { "UpperTorso", "RightUpperArm" }, { "RightUpperArm", "RightLowerArm" }, { "RightLowerArm", "RightHand" },
+
+    { "LowerTorso", "LeftUpperLeg" }, { "LeftUpperLeg", "LeftLowerLeg" }, { "LeftLowerLeg", "LeftFoot" },
+
+    { "LowerTorso", "RightUpperLeg" }, { "RightUpperLeg", "RightLowerLeg" }, { "RightLowerLeg", "RightFoot" }
+
+}
+
+
+
+local function CreateVisuals(Player)
+
+    local Box = SafeDraw("Square", { Thickness = 1, Visible = false, ZIndex = 10 })
+
+    local BoxOutline = SafeDraw("Square", { Thickness = 3, Color = Color3.new(0, 0, 0), Visible = false, ZIndex = 9 })
+
+    local NameTag = SafeDraw("Text", { Size = 13, Center = true, Outline = true, Visible = false, ZIndex = 10 })
+
+    local HealthBar = SafeDraw("Square", { Thickness = 1, Filled = true, Visible = false, ZIndex = 10 })
+
+    local HealthBarBack = SafeDraw("Square", { Thickness = 1, Filled = true, Color = Color3.new(0, 0, 0), Visible = false, ZIndex = 9 })
+
+    local Tracer = SafeDraw("Line", { Thickness = 1, Visible = false, ZIndex = 10 })
+
+    local HeadDot = SafeDraw("Circle", { Filled = true, NumSides = 12, Visible = false, ZIndex = 10 })
+
+
+
+    local CornerLines = {}
+
+    for i = 1, 8 do
+
+        CornerLines[i] = SafeDraw("Line", { Thickness = 1, Visible = false, ZIndex = 10 })
+
+    end
+
+
+
+    local SkeletonLines = {}
+
+    local SkeletonOutlines = {}
+
+    for i = 1, #BoneStructure do
+
+        SkeletonLines[i] = SafeDraw("Line", { Thickness = 1.5, Visible = false, ZIndex = 10 })
+
+        SkeletonOutlines[i] = SafeDraw("Line", { Thickness = 3, Color = Color3.new(0, 0, 0), Visible = false, ZIndex = 9 })
+
+    end
+
+
+
+    SafeConnect(RunService.RenderStepped, function()
+
+        local char = GetUniversalCharacter(Player)
+
+        local root = GetUniversalPart(char, "HumanoidRootPart")
+
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+        local color = RAINBOW_ESP and MainColor or BoxColor
+
+
+
+        if root and (Player ~= LocalPlayer or SELF_ESP) then
+
+            if TEAM_CHECK and Player.Team == LocalPlayer.Team and Player ~= LocalPlayer then
+
+                -- Skip teammates.
+
+            else
+
+                local distance = (root.Position - Camera.CFrame.Position).Magnitude
+
+                if distance <= ESP_DISTANCE then
+
+                    local Pos, OnScreen = Camera:WorldToViewportPoint(root.Position)
+
+                    if OnScreen then
+
+                        local Top = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 2.5, 0))
+
+                        local Bottom = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.2, 0))
+
+                        local H, W = Bottom.Y - Top.Y, (Bottom.Y - Top.Y) / 1.6
+
+                        local X, Y = Pos.X - W / 2, Top.Y
+
+
+
+                        if ESP_ENABLED and not CORNER_BOX then
+
+                            Box.Visible = true
+
+                            Box.Size = Vector2.new(W, H)
+
+                            Box.Position = Vector2.new(X, Y)
+
+                            Box.Color = color
+
+                            Box.Transparency = BOX_FILLED and BOX_OPACITY or 1
+
+                            Box.Filled = BOX_FILLED
+
+                            BoxOutline.Visible = OUTLINES
+
+                            BoxOutline.Size = Box.Size
+
+                            BoxOutline.Position = Box.Position
+
+                        else
+
+                            Box.Visible = false
+
+                            BoxOutline.Visible = false
+
+                        end
+
+
+
+                        if CORNER_BOX and ESP_ENABLED then
+
+                            local L = W / 4
+
+                            local cl = {
+
+                                { Vector2.new(X, Y), Vector2.new(X + L, Y) },
+
+                                { Vector2.new(X, Y), Vector2.new(X, Y + L) },
+
+                                { Vector2.new(X + W, Y), Vector2.new(X + W - L, Y) },
+
+                                { Vector2.new(X + W, Y), Vector2.new(X + W, Y + L) },
+
+                                { Vector2.new(X, Y + H), Vector2.new(X + L, Y + H) },
+
+                                { Vector2.new(X, Y + H), Vector2.new(X, Y + H - L) },
+
+                                { Vector2.new(X + W, Y + H), Vector2.new(X + W - L, Y + H) },
+
+                                { Vector2.new(X + W, Y + H), Vector2.new(X + W, Y + H - L) }
+
+                            }
+
+                            for i, v in pairs(CornerLines) do
+
+                                v.Visible = true
+
+                                v.From = cl[i][1]
+
+                                v.To = cl[i][2]
+
+                                v.Color = color
+
+                            end
+
+                        else
+
+                            for _, v in pairs(CornerLines) do
+
+                                v.Visible = false
+
+                            end
+
+                        end
+
+
+
+                        NameTag.Visible = NAME_ENABLED
+
+                        NameTag.Text = Player.Name
+
+                        NameTag.Position = Vector2.new(Pos.X, Y - 15)
+
+                        NameTag.Color = NameColor
+
+
+
+                        if HEALTHBAR_ENABLED and hum then
+
+                            local hp = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+
+                            HealthBarBack.Visible = true
+
+                            HealthBarBack.Size = Vector2.new(4, H)
+
+                            HealthBarBack.Position = Vector2.new(X - 6, Y)
+
+                            HealthBar.Visible = true
+
+                            HealthBar.Size = Vector2.new(2, hp * H)
+
+                            HealthBar.Position = Vector2.new(X - 5, Bottom.Y - (hp * H))
+
+                            HealthBar.Color = HealthColor
+
+                        else
+
+                            HealthBar.Visible = false
+
+                            HealthBarBack.Visible = false
+
+                        end
+
+
+
+                        if SKELETON_ENABLED and char then
+
+                            for i, bone in ipairs(BoneStructure) do
+
+                                local p1 = char:FindFirstChild(bone[1], true)
+
+                                local p2 = char:FindFirstChild(bone[2], true)
+
+                                if p1 and p2 then
+
+                                    local v1, os1 = Camera:WorldToViewportPoint(p1.Position)
+
+                                    local v2, os2 = Camera:WorldToViewportPoint(p2.Position)
+
+                                    if os1 and os2 then
+
+                                        SkeletonLines[i].Visible = true
+
+                                        SkeletonLines[i].From = Vector2.new(v1.X, v1.Y)
+
+                                        SkeletonLines[i].To = Vector2.new(v2.X, v2.Y)
+
+                                        SkeletonLines[i].Color = RAINBOW_ESP and MainColor or SkeletonColor
+
+                                        SkeletonOutlines[i].Visible = OUTLINES
+
+                                        SkeletonOutlines[i].From = SkeletonLines[i].From
+
+                                        SkeletonOutlines[i].To = SkeletonLines[i].To
+
+                                    else
+
+                                        SkeletonLines[i].Visible = false
+
+                                        SkeletonOutlines[i].Visible = false
+
+                                    end
+
+                                else
+
+                                    SkeletonLines[i].Visible = false
+
+                                    SkeletonOutlines[i].Visible = false
+
+                                end
+
+                            end
+
+                        else
+
+                            for i = 1, #SkeletonLines do
+
+                                SkeletonLines[i].Visible = false
+
+                                SkeletonOutlines[i].Visible = false
+
+                            end
+
+                        end
+
+
+
+                        if TRACERS_ENABLED then
+
+                            local mousePos = UserInputService:GetMouseLocation()
+
+                            local Origin = (TRACER_ORIGIN == "Bottom" and Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y))
+
+                                or (TRACER_ORIGIN == "Top" and Vector2.new(Camera.ViewportSize.X / 2, 0))
+
+                                or mousePos
+
+                            Tracer.Visible = true
+
+                            Tracer.From = Origin
+
+                            Tracer.To = Vector2.new(Pos.X, Pos.Y)
+
+                            Tracer.Color = RAINBOW_ESP and MainColor or TracerColor
+
+                        else
+
+                            Tracer.Visible = false
+
+                        end
+
+
+
+                        if HEADDOT_ENABLED and char:FindFirstChild("Head") then
+
+                            local hP, hO = Camera:WorldToViewportPoint(char.Head.Position)
+
+                            HeadDot.Visible = hO
+
+                            HeadDot.Position = Vector2.new(hP.X, hP.Y)
+
+                            HeadDot.Radius = math.clamp(100 / Pos.Z, 2, 6)
+
+                            HeadDot.Color = RAINBOW_ESP and MainColor or HeadDotColor
+
+                        else
+
+                            HeadDot.Visible = false
+
+                        end
+
+
+
+                        return
+
+                    end
+
+                end
+
+            end
+
+        end
+
+
+
+        Box.Visible = false
+
+        BoxOutline.Visible = false
+
+        NameTag.Visible = false
+
+        HealthBar.Visible = false
+
+        HealthBarBack.Visible = false
+
+        Tracer.Visible = false
+
+        HeadDot.Visible = false
+
+        for _, v in pairs(CornerLines) do
+
+            v.Visible = false
+
+        end
+
+        for _, v in pairs(SkeletonLines) do
+
+            v.Visible = false
+
+        end
+
+        for _, v in pairs(SkeletonOutlines) do
+
+            v.Visible = false
+
+        end
+
+    end)
+
+end
+
+
+
+-- [[ MAIN LOOP ]] --
+
+SafeConnect(RunService.RenderStepped, function(dt)
+
+    local mousePos = UserInputService:GetMouseLocation()
+
+    FOVOutline.Visible = SHOW_FOV
+
+    FOVOutline.Radius = FOV_RADIUS
+
+    FOVOutline.Position = mousePos
+
+
+
+    FOVCircle.Visible = SHOW_FOV
+
+    FOVCircle.Radius = FOV_RADIUS
+
+    FOVCircle.Position = mousePos
+
+    FOVCircle.Color = FOV_COLOR
+
+
+
+    FOVFill.Visible = SHOW_FOV and FOV_FILLED
+
+    FOVFill.Radius = FOV_RADIUS
+
+    FOVFill.Position = mousePos
+
+    FOVFill.Color = FOV_COLOR
+
+    FOVFill.Transparency = FOV_OPACITY
+
+
+
+    local IsAiming = false
+
+    if AIMBOT_MODE == "Always" then
+
+        IsAiming = true
+
+    elseif AIMBOT_MODE == "Toggle" then
+
+        IsAiming = holding
+
+    elseif AIMBOT_MODE == "Hold" then
+
+        local bindKey = GetBindValue()
+
+        if typeof(bindKey) == "EnumItem" then
+
+            if bindKey.EnumType == Enum.KeyCode then
+
+                IsAiming = UserInputService:IsKeyDown(bindKey)
+
+            elseif bindKey.EnumType == Enum.UserInputType then
+
+                IsAiming = UserInputService:IsMouseButtonPressed(bindKey)
+
+            end
+
+        end
+
+    end
+
+
+
+    if (AIMBOT_MASTER or CURSOR_AIMBOT) and IsAiming then
+
+        local BestTarget, MaxScore = nil, math.huge
+
+        for _, p in pairs(Players:GetPlayers()) do
+
+            local char = GetUniversalCharacter(p)
+
+            local root = GetUniversalPart(char, "HumanoidRootPart")
+
+            if p ~= LocalPlayer and char and root then
+
+                if TEAM_CHECK and p.Team == LocalPlayer.Team then
+
+                    continue
+
+                end
+
+
+
+                local ScreenPos, OnScreen = Camera:WorldToViewportPoint(root.Position)
+
+                local Dist = (root.Position - Camera.CFrame.Position).Magnitude
+
+                if OnScreen and Dist <= AIM_DISTANCE then
+
+                    local MouseDist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - mousePos).Magnitude
+
+                    if MouseDist <= FOV_RADIUS then
+
+                        local Score = (TARGET_PRIORITY == "Mouse") and MouseDist or Dist
+
+                        if Score < MaxScore then
+
+                            MaxScore = Score
+
+                            BestTarget = p
+
+                        end
+
+                    end
+
+                end
+
+            end
+
+        end
+
+
+
+        if BestTarget then
+
+            local char = GetUniversalCharacter(BestTarget)
+
+            local part = (AIM_PART == "Closest") and GetClosestPart(char) or GetUniversalPart(char, AIM_PART)
+
+            if part then
+
+                local Final = part.Position + (PREDICTION_ENABLED and (part.Velocity * PREDICTION_VALUE) or Vector3.zero)
+
+
+
+                if CURSOR_AIMBOT then
+
+                    local targetPos = Camera:WorldToViewportPoint(Final)
+
+                    local moveX = (targetPos.X - mousePos.X) * SMOOTHNESS
+
+                    local moveY = (targetPos.Y - mousePos.Y) * SMOOTHNESS
+
+                    if mousemoverel then
+
+                        mousemoverel(moveX, moveY)
+
+                    end
+
+                else
+
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Final), SMOOTHNESS)
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+    if flying and root then
+
+        root.Velocity = Vector3.zero
+
+        local moveDir = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Camera.CFrame.LookVector end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - Camera.CFrame.LookVector end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - Camera.CFrame.RightVector end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Camera.CFrame.RightVector end
+
+        if moveDir.Magnitude > 0 then
+
+            root.CFrame = root.CFrame + (moveDir.Unit * flySpeed * dt)
+
+        end
+
+    end
+
+end)
+
+
+
+-- [[ PHYSICS LOOP ]] --
+
+SafeConnect(RunService.Stepped, function()
+
+    if noclipping and LocalPlayer.Character then
+
+        for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+
+            if v:IsA("BasePart") then
+
+                v.CanCollide = false
+
+            end
+
+        end
+
+    end
+
+
+
+    if speedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+
+        LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeedValue
+
+    end
+
+end)
+
+
+
+-- [[ INPUT LOGIC ]] --
+
+SafeConnect(UserInputService.InputBegan, function(i, p)
+
+    if p then
+
+        return
+
+    end
+
+
+
+    local bindKey = GetBindValue()
+
+    if not bindKey then
+
+        return
+
+    end
+
+
+
+    if i.KeyCode == bindKey or i.UserInputType == bindKey then
+
+        if AIMBOT_MODE == "Hold" then
+
+            holding = true
+
+        elseif AIMBOT_MODE == "Toggle" then
+
+            holding = not holding
+
+        end
+
+    end
+
+end)
+
+
+
+SafeConnect(UserInputService.InputEnded, function(i)
+
+    local bindKey = GetBindValue()
+
+    if not bindKey then
+
+        return
+
+    end
+
+
+
+    if (i.KeyCode == bindKey or i.UserInputType == bindKey) and AIMBOT_MODE == "Hold" then
+
+        holding = false
+
+    end
+
+end)
+
+
+
+SafeConnect(UserInputService.JumpRequest, function()
+
+    if INF_JUMP and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
+    end
+
+end)
+
+
+
+for _, p in pairs(Players:GetPlayers()) do
+
+    CreateVisuals(p)
+
+end
