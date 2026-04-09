@@ -1,0 +1,146 @@
+-- Wait for game to load
+repeat task.wait() until game:IsLoaded()
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local ToggleMoney = Instance.new("TextButton")
+local ToggleSpeed = Instance.new("TextButton")
+local ToggleRebirth = Instance.new("TextButton")
+
+-- Stealth Setup
+ScreenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
+-- Try to use a protected container, fallback to PlayerGui if needed
+local success, targetParent = pcall(function() 
+    return gethui() or game:GetService("CoreGui") 
+end)
+ScreenGui.Parent = success and targetParent or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Theme & Layout
+MainFrame.Name = "Container"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -75, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 160, 0, 210)
+MainFrame.Active = true
+
+-- Modern Dragging Logic (Prevents Kicks)
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+	local delta = input.Position - dragStart
+	MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+MainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+MainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then update(input) end
+end)
+
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.Text = "STEALTH FARM"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+
+-- Button Helper Function
+local function StyleButton(btn, pos, text)
+    btn.Parent = MainFrame
+    btn.Position = pos
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
+    btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.AnchorPoint = Vector2.new(0.5, 0)
+    btn.Position = UDim2.new(0.5, 0, pos.Y.Scale, pos.Y.Offset)
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+end
+
+StyleButton(ToggleMoney, UDim2.new(0, 0, 0, 45), "Money: OFF")
+StyleButton(ToggleSpeed, UDim2.new(0, 0, 0, 95), "Speed: OFF")
+StyleButton(ToggleRebirth, UDim2.new(0, 0, 0, 145), "Rebirth: OFF")
+
+-- Remotes
+local MoneyRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("Networking"):WaitForChild("RF/PlotAction")
+local SpeedRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("UpgradeSpeed")
+local RebirthRemote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunctions"):WaitForChild("Rebirth")
+
+local MoneyRunning, SpeedRunning, RebirthRunning = false, false, false
+
+-- Logic
+ToggleMoney.MouseButton1Click:Connect(function()
+    MoneyRunning = not MoneyRunning
+    ToggleMoney.Text = MoneyRunning and "Money: BRUTE" or "Money: OFF"
+    ToggleMoney.BackgroundColor3 = MoneyRunning and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(180, 40, 40)
+    
+    if MoneyRunning then
+        task.spawn(function()
+            while MoneyRunning do
+                local folder = workspace:FindFirstChild("Bases")
+                if folder then
+                    for _, base in pairs(folder:GetChildren()) do
+                        if not MoneyRunning then break end
+                        for i = 1, 5 do
+                            pcall(function() MoneyRemote:InvokeServer("Collect Money", base.Name, tostring(i)) end)
+                        end
+                    end
+                end
+                task.wait(0.2)
+            end
+        end)
+    end
+end)
+
+ToggleSpeed.MouseButton1Click:Connect(function()
+    SpeedRunning = not SpeedRunning
+    ToggleSpeed.Text = SpeedRunning and "Speed: 10x" or "Speed: OFF"
+    ToggleSpeed.BackgroundColor3 = SpeedRunning and Color3.fromRGB(30, 140, 180) or Color3.fromRGB(180, 40, 40)
+    
+    if SpeedRunning then
+        task.spawn(function()
+            while SpeedRunning do
+                for i = 1, 10 do
+                    if not SpeedRunning then break end
+                    pcall(function() SpeedRemote:InvokeServer(1) end)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+ToggleRebirth.MouseButton1Click:Connect(function()
+    RebirthRunning = not RebirthRunning
+    ToggleRebirth.Text = RebirthRunning and "Rebirth: ON" or "Rebirth: OFF"
+    ToggleRebirth.BackgroundColor3 = RebirthRunning and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(180, 40, 40)
+    
+    if RebirthRunning then
+        task.spawn(function()
+            while RebirthRunning do
+                pcall(function() RebirthRemote:InvokeServer() end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
